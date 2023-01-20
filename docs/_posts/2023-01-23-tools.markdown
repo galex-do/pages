@@ -40,7 +40,7 @@ echo "Hello"
 
 Картинка в проекте
 
-![The San Juan Mountains are beautiful!](/assets/images/mountain.png "San Juan Mountains")
+![The San Juan Mountains are beautiful!](./assets/images/mountain.png "San Juan Mountains")
 
 Внешняя картинка
 
