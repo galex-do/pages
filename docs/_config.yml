@@ -22,8 +22,8 @@ title: Бесконечное путешествие
 email: your-better-not@gmail.me
 description: >- # this means to ignore newlines until "baseurl:"
   Статический бложик для публикации открытых статей
-baseurl: "pages" # the subpath of your site, e.g. /blog
-url: "https://galex-do.gitlab.io/" # the base hostname & protocol for your site, e.g. http://example.com
+baseurl: "/pages" # the subpath of your site, e.g. /blog
+url: "https://galex-do.gitlab.io" # the base hostname & protocol for your site, e.g. http://example.com
 #twitter_username: jekyllrb
 github_username:  galex-do
 
