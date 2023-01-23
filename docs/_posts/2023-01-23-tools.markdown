@@ -40,7 +40,7 @@ echo "Hello"
 
 Картинка в проекте
 
-![Картинка в проекте!](/assets/images/mountain.png "San Juan Mountains")
+![Картинка в проекте!](https://galex-do.github.io/pages/assets/images/mountain.png "San Juan Mountains")
 
 Внешняя картинка
 
