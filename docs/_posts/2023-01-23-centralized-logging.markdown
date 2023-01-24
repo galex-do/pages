@@ -127,11 +127,13 @@ Fluentd лучше адаптирован к контейнерной инфра
 
 ![EFK](https://galex-do.github.io/pages/assets/images/logging_fek.png "EFK")
 
-**PLG-стек** расшифровывается как Prometheus + Loki + Grafana, но в контексте централизованного логирования нас интересуют последние два.
+**PLG-стек** расшифровывается как Prometheus + Loki + Grafana, но в контексте централизованного логирования нас интересуют последние два. Стек продуктов с открытым исходным кодом развивает и поддерживает команда [Grafana Labs](https://github.com/grafana). PLG-стек преимущественно написан на языке Go, что делает его компоненты более быстрыми и менее ресурсозатратными, чем компоненты ELK-стека.
+
+Агентом в PLG-стеке является Promtail
 
 PLG удобен на небольших и средних проектах. Loki умеет экспортировать логи в объектное хранилище для длительного хранения, что позволяет сэкономить на хранении данных, особенно при использовании облачных платформ.
 
----
+![PLG](https://galex-do.github.io/pages/assets/images/logging_plg.png "PLG")
 
 Если сведем обзор по решениям в табличку, получим примерно такое разделение отвественностей между компонентами
 
@@ -139,7 +141,6 @@ PLG удобен на небольших и средних проектах. Lok
 |---------|----------|-----------|-------------------|------------|
 | ELK     | Beats    | Logstash  | Elasticsearch     | Kibana     |
 | EFK     | Fluentd  | Fluentd   | Elasticsearch     | Kibana     |
-| Graylog | Fluentd  | Fluentd   | Elasticsearch     | Graylog    |
 | Loki    | Promtail | Loki      | Loki              | Grafana    |
 
 И это только самые частые комбинации. В реальности компоненты стеков постоянно развиваются и становятся взаимозаменяемыми. Например, мы [можем использовать Grafana](https://grafana.com/docs/grafana/latest/datasources/elasticsearch/) вместо Kibana, чтобы визуализировать данные Elasticsearch. При выборе конечного решения стоит учитывать:
@@ -167,3 +168,4 @@ todo
 
 * https://signoz.io/blog/fluentd-vs-logstash/
 * https://habr.com/ru/company/southbridge/blog/510822/
+* https://habr.com/ru/company/badoo/blog/507718/
