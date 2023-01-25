@@ -437,49 +437,49 @@ INFO [01-25|13:56:34] App mode production                      logger=settings
 * http://localhost:3000, если устанавливаем сервисы локально
 * http://<server_ip>:3000, если устанавливаем на удаленном сервере
 
-![Grafana Auth](https://galex-do.github.io/pages/assets/images/grafana_hello.png "Grafana Auth")
+[![Grafana Auth](https://galex-do.github.io/pages/assets/images/grafana_hello.png "Grafana Auth")](https://galex-do.github.io/pages/assets/images/grafana_hello.png)
 
 #### Связываем Grafana и Loki
 
 Авторизуемся в Grafana (при первом входе: *admin:admin*), находим раздел Configuration и страницу Data sources в нем.
 
-![Grafana DS](https://galex-do.github.io/pages/assets/images/grafana_datasources.png "Grafana DS")
+[![Grafana DS](https://galex-do.github.io/pages/assets/images/grafana_datasources.png "Grafana DS")](https://galex-do.github.io/pages/assets/images/grafana_datasources.png)
 
 Нажимаем на кнопку "Add Data Source" и выбираем из списка предложенных вариантов Loki.
 
 При настройке нового Data source нам нужно только прописать в поле URL то, что Grafana подсказывает: `http://localhost:3100`. Loki работает на том же сервере, что и Grafana, поэтому Grafana найдет его на указанном порту.
 
-![Grafana DS](https://galex-do.github.io/pages/assets/images/grafana_ds_loki.png "Grafana DS")
+[![Grafana DS](https://galex-do.github.io/pages/assets/images/grafana_ds_loki.png "Grafana DS")](https://galex-do.github.io/pages/assets/images/grafana_ds_loki.png)
 
 Нажав внизу "Save & Exit", мы должны увидеть сообщение: `Data source connected and labels found.`
 
 Пришло время отправиться в раздел Explore и посмотреть на логи, которые сохранились в базу.
 
-![Grafana explore](https://galex-do.github.io/pages/assets/images/grafana_explore.png "Grafana explore")
+[![Grafana explore](https://galex-do.github.io/pages/assets/images/grafana_explore.png "Grafana explore")](https://galex-do.github.io/pages/assets/images/grafana_explore.png)
 
 Grafana использует язык запросов LogQL, чтобы обращаться к данным Loki и получать нужные записи. В последних версиях Grafana в Explore появился конструктор, который позволяет не углубляться в LogQL и получать нужные данные, заполнив несколько форм.
 
-![Grafana explore](https://galex-do.github.io/pages/assets/images/grafana_explore_labels.png "Grafana explore")
+[![Grafana explore](https://galex-do.github.io/pages/assets/images/grafana_explore_labels.png "Grafana explore")](https://galex-do.github.io/pages/assets/images/grafana_explore_labels.png)
 
 Для начала посмотрим, какие логи Promtail прислал нам с меткой `job=auth` за последние 15 минут:
 
-![Grafana explore](https://galex-do.github.io/pages/assets/images/grafana_explore_auth.png "Grafana explore")
+[![Grafana explore](https://galex-do.github.io/pages/assets/images/grafana_explore_auth.png "Grafana explore")](https://galex-do.github.io/pages/assets/images/grafana_explore_auth.png)
 
 Как видим, в результатах действительно только записи, содержащие "Failed password", и мы даже можем наблюдать интенсивность таких событий на временном срезе. Grafana располагает встроенным механизмом алертов, и технически мы можем добавить алерт на слишком частое появление события с Failed password, который будет присылать нам уведомление об этом на почту или в Telegram.
 
 Посмотрим, что нам предлагается по тегу service, который Promtail извлек с помощью Regexp:
 
-![Grafana explore](https://galex-do.github.io/pages/assets/images/grafana_explore_services.png "Grafana explore")
+[![Grafana explore](https://galex-do.github.io/pages/assets/images/grafana_explore_services.png "Grafana explore")](https://galex-do.github.io/pages/assets/images/grafana_explore_services.png)
 
 Каждое уникальное имя сервиса в системном логе мы можем использовать для поиска по тегу в Loki. Если идти дальше в настройке Promtail, мы можем расширить pipeline_stage и мониторить только некоторые сервисы из системного лога и дропать, например, все, что не принадлежит семейству systemd.
 
 А теперь достанем логи c `service=systemd`, в которых упоминается `Network`.
 
-![Grafana explore](https://galex-do.github.io/pages/assets/images/grafana_explore_systemd.png "Grafana explore")
+[![Grafana explore](https://galex-do.github.io/pages/assets/images/grafana_explore_systemd.png "Grafana explore")](https://galex-do.github.io/pages/assets/images/grafana_explore_systemd.png)
 
 Мы можем аггрегировать записи по лейблам. Например, возьмем системные логи с `host=node-1` (единственным в нашем случае), а далее посчитаем сколько в среднем событий событий на интервале минуты генерирует каждый сервис.
 
-![Grafana explore](https://galex-do.github.io/pages/assets/images/grafana_explore_aggregate.png "Grafana explore")
+[![Grafana explore](https://galex-do.github.io/pages/assets/images/grafana_explore_aggregate.png "Grafana explore")](https://galex-do.github.io/pages/assets/images/grafana_explore_aggregate.png)
 
 Сейчас мы скорее всего увидим один большой пик - это момент, когда Promtail запустился и передал в Loki все записи, которые нашел в указанных ему логах. На более долгом интервале пользования такая статистика станет более наглядной.
 
@@ -491,7 +491,7 @@ Grafana использует язык запросов LogQL, чтобы обр�
 - Вставить в Code запроса к Loki наш запрос
 - Получить ту же картинку и мониторить частоту возникновения событий в динамике
 
-![Grafana dashboard](https://galex-do.github.io/pages/assets/images/grafana_copyquery.png "Grafana dashboard")
+[![Grafana dashboard](https://galex-do.github.io/pages/assets/images/grafana_copyquery.png "Grafana dashboard")](https://galex-do.github.io/pages/assets/images/grafana_copyquery.png)
 
 На этом можно сказать, что наш централизованный мониторинг готов к работе. Мы получили логи с условного удаленного хоста в удобном для нас формате и смогли искать нужные нам данные через веб-интерфейс Grafana. Дальше только ставить Promtail на новые серверы, настраивать pipelines, добавлять дашборды и алерты.
 
