@@ -231,7 +231,7 @@ Processing triggers for mime-support (3.64ubuntu1) ...
 Processing triggers for man-db (2.9.1-1) ...
 {% endhighlight %}
 
-Распакуем архивы в директорию logging
+Распакуем архивы в директорию logging:
 
 {% highlight sh %}
 unzip loki-linux-amd64.zip -d /opt/logging
@@ -245,7 +245,7 @@ ls /opt/logging/
 loki-linux-amd64  promtail-linux-amd64
 {% endhighlight %}
 
-Мы скачали и распаковали исполняемые файлы Loki и Promtail. Осталось их только настроить и запустить.
+Мы скачали и распаковали исполняемые файлы Loki и Promtail. Осталось их настроить и запустить.
 
 Базовый конфиг Loki можем взять из [официального github](https://github.com/grafana/loki/blob/main/cmd/loki/loki-local-config.yaml) — его raw-версии будет достаточно для тестовых целей. Пойдем в директорию `/opt/logging` и скачаем его:
 
@@ -277,20 +277,24 @@ level=info ts=2023-01-25T11:15:33.940883466Z caller=compactor.go:436 msg="waitin
 level=info ts=2023-01-25T11:15:39.016133708Z caller=frontend_scheduler_worker.go:101 msg="adding connection to scheduler" addr=127.0.0.1:9096
 {% endhighlight %}
 
-Оставим Loki работать и откроем новую сессию терминала. Теперь займемся Promtail. Его дефолтный конфиг мы [тоже можем найти на Github](https://github.com/grafana/loki/blob/main/clients/cmd/promtail/promtail-local-config.yaml). Скачаем его и немного доработаем:
+Оставим Loki работать и откроем новую сессию терминала. Теперь займемся Promtail. Его дефолтный конфиг мы [тоже можем найти на Github](https://github.com/grafana/loki/blob/main/clients/cmd/promtail/promtail-local-config.yaml). Скачаем его:
 
 {% highlight sh %}
 cd /opt/logging && wget https://raw.githubusercontent.com/grafana/loki/main/clients/cmd/promtail/promtail-local-config.yaml
 {% endhighlight %}
+
+И немного доработаем в редакторе.
 
 В clients мы видим адрес аггрегатора Loki, на который Promtail будет транслировать логи. В scrape_configs описаны задачи, выполняемые агентом на сервере.
 
 Условно, каждый отдельный job в Promtail это:
 
 - Список целей — откуда Promtail получает логи
-- Правила, как он обрабатывает полученные теги (парсит, фильтрует) перед отправкой
+- Правила, как он обрабатывает полученные логи перед отправкой (pipeline_stages).
 
-Уберем из файла стандартный job system, который просто транслирует Loki все, что найдет в `/var/log`, оканчивающееся на `log`. Добавим туда свои job для syslog и логов авторизации.
+Блок pipeline_stages необязателен — Promtail может никак не обрабатывать логи, а просто передавать их Loki. Но мы попробуем добавить фильтры, чтобы получить представление о том, как он работает.
+
+Уберем из файла стандартный job `system`, который просто транслирует Loki все, что найдет в `/var/log`, оканчивающееся на `log`. Добавим туда свои job для syslog и логов авторизации.
 
 {% highlight yaml %}
 static_configs:
@@ -306,8 +310,8 @@ static_configs:
     - regex:
         expression: '(?P<time>\S* \S* \S*) (?P<host>\S*) (?P<service>\S*)\[.*\]: (?P<msg>.*)'
     - labels:
-        process:
         host:
+        service:
 
 - job_name: auth
   static_configs:
@@ -324,7 +328,7 @@ static_configs:
 
 Теперь разберемся, что мы делаем в новых job.
 
-В **syslog** мы собираем только события из файла `/var/log/syslog`. Каждую строку мы парсим с помощью регулярного выражения. Для полей `host` и `service` Promtail создает отдельные теги, по которым мы сможем выполнять поиск в Loki.
+В `syslog` мы собираем события только из файла `/var/log/syslog`. Каждую строку мы парсим с помощью регулярного выражения. Для полей `host` и `service` Promtail создает отдельные теги, по которым мы сможем выполнять поиск в Loki.
 
 Promtail, увидев, например, строку лога:
 
@@ -341,7 +345,7 @@ Jan 25 11:38:23 node-1 sshd[1905]: Disconnected from authenticating user root 81
 
 В `host` и `service` у логов часто будут повторяющиеся значения, поэтому будет удобно добавить теги (и индексы) по ним, чтобы ускорить поиск.
 
-Далее, в **auth** мы собираем только события из `/var/log/auth.log`. При этом все записи, которые не содержат строку "Failed password" — по-умолчанию отбрасываем и не отправляем в Loki. Можно сказать, что мы затачиваем этот job строго под сценарий отслеживания подбора пароля к серверам. Такой подход в логировании позволяет отсеять большую часть рутинных записей логов и оставить в хранилище информацию только о тех событиях, которые нам интересны. И это довольно выгодно с точки зрения оптимизации объема базы с логами!
+Далее, в `auth` мы собираем события только из `/var/log/auth.log`. При этом все записи, которые не содержат строку "Failed password" — по-умолчанию отбрасываем и не отправляем в Loki. Можно сказать, что мы затачиваем этот job строго под сценарий отслеживания подбора пароля к серверам. Такой подход в логировании позволяет отсеять большую часть рутинных записей логов и оставить в хранилище информацию только о тех событиях, которые нам интересны. И это довольно выгодно с точки зрения оптимизации объема базы с логами!
 
 Итак, запустим Promtail с доработанной конфигурацией:
 
@@ -402,6 +406,69 @@ grafana-9.3.4/bin/grafana-server
 {% endhighlight %}
 
 После распаковки можем видеть в `/opt` папку grafana выбранной версии.
+
+{% highlight sh %}
+ls /opt
+grafana-9.3.4  grafana-9.3.4.linux-amd64.tar.gz  logging  loki-linux-amd64.zip  promtail-linux-amd64.zip
+ls /opt/grafana-9.3.4
+bin  conf  LICENSE  NOTICE.md  plugins-bundled  public  README.md  scripts  VERSION
+{% endhighlight %}
+
+Все самое интересное находится в директории `conf`, но плюсом Grafana является то, что она поставляется готовой к употреблению. Нам нужно только запустить её, найдя исполняемый файл в `bin`:
+
+{% highlight sh %}
+cd /opt/grafana-9.3.4/bin && ./grafana-server
+
+# =>
+Grafana server is running with elevated privileges. This is not recommended
+INFO [01-25|13:56:34] Starting Grafana                         logger=settings version=9.3.4 commit=ecf4e45659 branch=HEAD compiled=2023-01-24T14:03:52Z
+INFO [01-25|13:56:34] Config loaded from                       logger=settings file=/opt/grafana-9.3.4/conf/defaults.ini
+INFO [01-25|13:56:34] Path Home                                logger=settings path=/opt/grafana-9.3.4
+INFO [01-25|13:56:34] Path Data                                logger=settings path=/opt/grafana-9.3.4/data
+INFO [01-25|13:56:34] Path Logs                                logger=settings path=/opt/grafana-9.3.4/data/log
+INFO [01-25|13:56:34] Path Plugins                             logger=settings path=/opt/grafana-9.3.4/data/plugins
+INFO [01-25|13:56:34] Path Provisioning                        logger=settings path=/opt/grafana-9.3.4/conf/provisioning
+INFO [01-25|13:56:34] App mode production                      logger=settings
+...
+{% endhighlight %}
+
+Теперь, в зависимости от того, где мы настраиваем наше централизованное логирование, мы должны обнаружить Grafana в браузере по адресу:
+
+* http://localhost:3000, если устанавливаем сервисы локально
+* http://<server_ip>:3000, если устанавливаем на удаленном сервере
+
+![Grafana Auth](https://galex-do.github.io/pages/assets/images/grafana_hello.png "Grafana Auth")
+
+Авторизуемся в Grafana (при первом входе: *admin:admin*), находим раздел Configuration и страницу Data sources в нем.
+
+![Grafana DS](https://galex-do.github.io/pages/assets/images/grafana_datasources.png "Grafana DS")
+
+Нажимаем на кнопку "Add Data Source" и выбираем из списка предложенных вариантов Loki.
+
+При настройке нового Data source нам нужно только прописать в поле URL то, что Grafana подсказывает: `http://localhost:3100`. Loki работает на том же сервере, что и Grafana, поэтому Grafana найдет его на указанном порту.
+
+![Grafana DS](https://galex-do.github.io/pages/assets/images/grafana_ds_loki.png "Grafana DS")
+
+Нажав внизу "Save & Exit", мы должны увидеть сообщение: `Data source connected and labels found.`
+
+Пришло время отправиться в раздел Explore и посмотреть на логи, которые сохранились в базу.
+
+![Grafana explore](https://galex-do.github.io/pages/assets/images/grafana_explore.png "Grafana explore")
+
+Grafana использует язык запросов LogQL, чтобы обращаться к данным Loki и получать нужные записи. В последних версиях Grafana в Explore появился конструктор, который позволяет не углубляться в LogQL и получать нужные данные, заполнив несколько форм.
+
+![Grafana explore](https://galex-do.github.io/pages/assets/images/grafana_explore_labels.png "Grafana explore")
+
+Для начала посмотрим, какие логи Promtail прислал нам с меткой job=auth за последние 15 минут:
+
+![Grafana explore](https://galex-do.github.io/pages/assets/images/grafana_explore_auth.png "Grafana explore")
+
+Как видим, в результатах действительно только записи, содержащие "Failed password", и мы даже можем наблюдать интенсивность таких событий на временном срезе. Grafana располагает встроенным механизмом алертов, и технически мы можем добавить алерт на слишком частое появление события с Failed password, который будет присылать нам уведомление об этом на почту или в Telegram.
+
+Посмотрим, что нам предлагается по тегу service, который Promtail извлек с помощью Regexp:
+
+![Grafana explore](https://galex-do.github.io/pages/assets/images/grafana_explore_services.png "Grafana explore")
+
 
 ### В итоге
 
