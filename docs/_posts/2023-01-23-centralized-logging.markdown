@@ -247,13 +247,13 @@ loki-linux-amd64  promtail-linux-amd64
 
 Мы скачали и распаковали исполняемые файлы Loki и Promtail. Осталось их только настроить и запустить.
 
-Базовый конфиг Loki можем взять из [официального github](https://github.com/grafana/loki/blob/main/cmd/loki/loki-local-config.yaml) - его raw-версии будет достаточно для тестовых целей. Пойдем в директорию `/opt/logging` и скачаем его:
+Базовый конфиг Loki можем взять из [официального github](https://github.com/grafana/loki/blob/main/cmd/loki/loki-local-config.yaml) — его raw-версии будет достаточно для тестовых целей. Пойдем в директорию `/opt/logging` и скачаем его:
 
 {% highlight sh %}
 cd /opt/logging && wget https://raw.githubusercontent.com/grafana/loki/main/cmd/loki/loki-local-config.yaml
 {% endhighlight %}
 
-На данный момент в конфиге нам интересен только параметр http_listen_port - это порт, на который promtail будет присылать логи.
+На данный момент в конфиге нам интересен только параметр http_listen_port — это порт, на который promtail будет присылать логи.
 
 Запустим Loki и посмотрим, что он скажет:
 
@@ -269,7 +269,7 @@ level=info ts=2023-01-25T11:15:28.819769758Z caller=table_manager.go:262 msg="qu
 level=info ts=2023-01-25T11:15:28.81979252Z caller=shipper.go:127 msg="starting index shipper in RW mode"
 level=info ts=2023-01-25T11:15:28.819844879Z caller=shipper_index_client.go:78 msg="starting boltdb shipper in RW mode"
 ...
-level=info ts=2023-01-25T11:15:29.015743752Z caller=loki.go:402 msg="**Loki started**"
+level=info ts=2023-01-25T11:15:29.015743752Z caller=loki.go:402 msg="Loki started"
 level=info ts=2023-01-25T11:15:32.015764027Z caller=scheduler.go:682 msg="this scheduler is in the ReplicationSet, will now accept requests."
 level=info ts=2023-01-25T11:15:32.015797446Z caller=worker.go:209 msg="adding connection" addr=127.0.0.1:9096
 level=info ts=2023-01-25T11:15:33.940775675Z caller=compactor.go:407 msg="this instance has been chosen to run the compactor, starting compactor"
@@ -287,13 +287,14 @@ cd /opt/logging && wget https://raw.githubusercontent.com/grafana/loki/main/clie
 
 Условно, каждый отдельный job в Promtail это:
 
-- Список целей - откуда Promtail получает логи
+- Список целей — откуда Promtail получает логи
 - Правила, как он обрабатывает полученные теги (парсит, фильтрует) перед отправкой
 
-Уберем из файла стандартный job system, который просто вынимает все, что найдет в `/var/log`, оканчивающееся на `log`. Добавим туда свои job для syslog и логов авторизации.
+Уберем из файла стандартный job system, который просто транслирует Loki все, что найдет в `/var/log`, оканчивающееся на `log`. Добавим туда свои job для syslog и логов авторизации.
 
 {% highlight yaml %}
 static_configs:
+
 - job_name: syslog
   static_configs:
   - targets:
@@ -301,6 +302,13 @@ static_configs:
     labels:
       job: syslog
       __path__: /var/log/syslog
+  pipeline_stages:
+    - regex:
+        expression: '(?P<time>\S* \S* \S*) (?P<host>\S*) (?P<service>\S*)\[.*\]: (?P<msg>.*)'
+    - labels:
+        process:
+        host:
+
 - job_name: auth
   static_configs:
   - targets:
@@ -310,10 +318,30 @@ static_configs:
       __path__: /var/log/auth.log
   pipeline_stages:
     - match:
-        selector: '{filename="/var/log/auth.log"} !~ "Failed password"'
+        selector: '{ filename="/var/log/auth.log" } !~ "Failed password"'
         action: drop
 {% endhighlight %}
 
+Теперь разберемся, что мы делаем в новых job.
+
+В **syslog** мы собираем только события из файла `/var/log/syslog`. Каждую строку мы парсим с помощью регулярного выражения. Для полей `host` и `service` Promtail создает отдельные теги, по которым мы сможем выполнять поиск в Loki.
+
+Promtail, увидев, например, строку лога:
+
+{% highlight %}
+Jan 25 11:38:23 node-1 sshd[1905]: Disconnected from authenticating user root 81.68.93.197 port 36058 [preauth]
+{% endhighlight %}
+
+Разберет её с помощью regex следующим образом:
+
+- *time*: Jan 25 11:38:23
+- *host*: node-1
+- *service*: sshd
+- *msg*: Disconnected from authenticating user root 81.68.93.197 port 36058 [preauth]
+
+В `host` и `service` у логов часто будут повторяющиеся значения, поэтому будет удобно добавить теги (и индексы) по ним, чтобы ускорить поиск.
+
+Далее, в **auth** мы собираем только события из `/var/log/auth.log`. При этом все записи, которые не содержат строку "Failed password" — по-умолчанию отбрасываем и не отправляем в Loki. Можно сказать, что мы затачиваем этот job строго под сценарий отслеживания подбора пароля к серверам. Такой подход в логировании позволяет отсеять большую часть рутинных записей логов и оставить в хранилище информацию только о тех событиях, которые нам интересны. И это довольно выгодно с точки зрения хранения гигабайтных логов! 
 
 #### Ставим Grafana
 
