@@ -170,7 +170,7 @@ Fluentd лучше адаптирован к контейнерной инфра
 
 Заглянем в [Github Loki](https://github.com/grafana/loki/releases) и взглянем на последнюю выпущенную версию приложения.
 
-В "Assets" каждого релиза мы можем найти архивы loki и promtail для разных ОС. Скопируем ссылки на подходящие архивы и закачаем их на наш сервер логирования, используя `wget`. Для Ubuntu 20, например, подойдет сборка linux-amd64:
+В "Assets" каждого релиза мы можем найти архивы Loki и promtail для разных ОС. Скопируем ссылки на подходящие архивы и закачаем их на наш сервер логирования, используя `wget`. Для Ubuntu 20, например, подойдет сборка linux-amd64:
 
 {% highlight sh %}
 wget https://github.com/grafana/loki/releases/download/v2.7.1/loki-linux-amd64.zip -P /opt
@@ -245,7 +245,75 @@ ls /opt/logging/
 loki-linux-amd64  promtail-linux-amd64
 {% endhighlight %}
 
-Мы скачали и распаковали бинарные исполняемые файлы loki и promtail. Осталось их только настроить и запустить.
+Мы скачали и распаковали исполняемые файлы Loki и Promtail. Осталось их только настроить и запустить.
+
+Базовый конфиг Loki можем взять из [официального github](https://github.com/grafana/loki/blob/main/cmd/loki/loki-local-config.yaml) - его raw-версии будет достаточно для тестовых целей. Пойдем в директорию `/opt/logging` и скачаем его:
+
+{% highlight sh %}
+cd /opt/logging && wget https://raw.githubusercontent.com/grafana/loki/main/cmd/loki/loki-local-config.yaml
+{% endhighlight %}
+
+На данный момент в конфиге нам интересен только параметр http_listen_port - это порт, на который promtail будет присылать логи.
+
+Запустим Loki и посмотрим, что он скажет:
+
+{% highlight sh %}
+./loki-linux-amd64 -config.file=loki-local-config.yaml
+
+# =>
+level=info ts=2023-01-25T11:15:28.818425004Z caller=main.go:103 msg="Starting Loki" version="(version=HEAD-e0af1cc, branch=HEAD, revision=e0af1cc8a)"
+level=info ts=2023-01-25T11:15:28.818858122Z caller=server.go:323 http=[::]:3100 grpc=[::]:9096 msg="server listening on addresses"
+level=warn ts=2023-01-25T11:15:28.819434198Z caller=cache.go:114 msg="fifocache config is deprecated. use embedded-cache instead"
+level=warn ts=2023-01-25T11:15:28.819453316Z caller=experimental.go:20 msg="experimental feature in use" feature="In-memory (FIFO) cache - chunksembedded-cache"
+level=info ts=2023-01-25T11:15:28.819769758Z caller=table_manager.go:262 msg="query readiness setup completed" duration=1.232µs distinct_users_len=0
+level=info ts=2023-01-25T11:15:28.81979252Z caller=shipper.go:127 msg="starting index shipper in RW mode"
+level=info ts=2023-01-25T11:15:28.819844879Z caller=shipper_index_client.go:78 msg="starting boltdb shipper in RW mode"
+...
+level=info ts=2023-01-25T11:15:29.015743752Z caller=loki.go:402 msg="**Loki started**"
+level=info ts=2023-01-25T11:15:32.015764027Z caller=scheduler.go:682 msg="this scheduler is in the ReplicationSet, will now accept requests."
+level=info ts=2023-01-25T11:15:32.015797446Z caller=worker.go:209 msg="adding connection" addr=127.0.0.1:9096
+level=info ts=2023-01-25T11:15:33.940775675Z caller=compactor.go:407 msg="this instance has been chosen to run the compactor, starting compactor"
+level=info ts=2023-01-25T11:15:33.940883466Z caller=compactor.go:436 msg="waiting 10m0s for ring to stay stable and previous compactions to finish before starting compactor"
+level=info ts=2023-01-25T11:15:39.016133708Z caller=frontend_scheduler_worker.go:101 msg="adding connection to scheduler" addr=127.0.0.1:9096
+{% endhighlight %}
+
+Оставим Loki работать и откроем новую сессию терминала. Теперь займемся Promtail. Его дефолтный конфиг мы [тоже можем найти на Github](https://github.com/grafana/loki/blob/main/clients/cmd/promtail/promtail-local-config.yaml). Скачаем его и немного доработаем:
+
+{% highlight sh %}
+cd /opt/logging && wget https://raw.githubusercontent.com/grafana/loki/main/clients/cmd/promtail/promtail-local-config.yaml
+{% endhighlight %}
+
+В clients мы видим адрес аггрегатора Loki, на который Promtail будет транслировать логи. В scrape_configs описаны задачи, выполняемые агентом на сервере.
+
+Условно, каждый отдельный job в Promtail это:
+
+- Список целей - откуда Promtail получает логи
+- Правила, как он обрабатывает полученные теги (парсит, фильтрует) перед отправкой
+
+Уберем из файла стандартный job system, который просто вынимает все, что найдет в `/var/log`, оканчивающееся на `log`. Добавим туда свои job для syslog и логов авторизации.
+
+{% highlight yaml %}
+static_configs:
+- job_name: syslog
+  static_configs:
+  - targets:
+      - localhost
+    labels:
+      job: syslog
+      __path__: /var/log/syslog
+- job_name: auth
+  static_configs:
+  - targets:
+      - localhost
+    labels:
+      job: auth
+      __path__: /var/log/auth.log
+  pipeline_stages:
+    - match:
+        selector: '{filename="/var/log/auth.log"} !~ "Failed password"'
+        action: drop
+{% endhighlight %}
+
 
 #### Ставим Grafana
 
