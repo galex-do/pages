@@ -328,7 +328,7 @@ static_configs:
 
 Promtail, увидев, например, строку лога:
 
-{% highlight %}
+{% highlight sh %}
 Jan 25 11:38:23 node-1 sshd[1905]: Disconnected from authenticating user root 81.68.93.197 port 36058 [preauth]
 {% endhighlight %}
 
@@ -341,7 +341,40 @@ Jan 25 11:38:23 node-1 sshd[1905]: Disconnected from authenticating user root 81
 
 В `host` и `service` у логов часто будут повторяющиеся значения, поэтому будет удобно добавить теги (и индексы) по ним, чтобы ускорить поиск.
 
-Далее, в **auth** мы собираем только события из `/var/log/auth.log`. При этом все записи, которые не содержат строку "Failed password" — по-умолчанию отбрасываем и не отправляем в Loki. Можно сказать, что мы затачиваем этот job строго под сценарий отслеживания подбора пароля к серверам. Такой подход в логировании позволяет отсеять большую часть рутинных записей логов и оставить в хранилище информацию только о тех событиях, которые нам интересны. И это довольно выгодно с точки зрения хранения гигабайтных логов! 
+Далее, в **auth** мы собираем только события из `/var/log/auth.log`. При этом все записи, которые не содержат строку "Failed password" — по-умолчанию отбрасываем и не отправляем в Loki. Можно сказать, что мы затачиваем этот job строго под сценарий отслеживания подбора пароля к серверам. Такой подход в логировании позволяет отсеять большую часть рутинных записей логов и оставить в хранилище информацию только о тех событиях, которые нам интересны. И это довольно выгодно с точки зрения оптимизации объема базы с логами!
+
+Итак, запустим Promtail с доработанной конфигурацией:
+
+{% highlight sh %}
+./promtail-linux-amd64 -config.file=promtail-local-config.yaml
+
+# =>
+level=info ts=2023-01-25T13:34:08.707415107Z caller=promtail.go:123 msg="Reloading configuration file" md5sum=88b3a612a80529e6876a275d9a7e3c44
+level=info ts=2023-01-25T13:34:08.708475807Z caller=server.go:323 http=[::]:9080 grpc=[::]:42285 msg="server listening on addresses"
+level=info ts=2023-01-25T13:34:08.709451383Z caller=main.go:171 msg="Starting Promtail" version="(version=HEAD-e0af1cc, branch=HEAD, revision=e0af1cc8a)"
+level=warn ts=2023-01-25T13:34:08.70957955Z caller=promtail.go:220 msg="enable watchConfig"
+level=info ts=2023-01-25T13:34:13.710350779Z caller=filetargetmanager.go:352 msg="Adding target" key="/var/log/syslog:{job=\"syslog\"}"
+level=info ts=2023-01-25T13:34:13.71042411Z caller=filetargetmanager.go:352 msg="Adding target" key="/var/log/auth.log:{job=\"auth\"}"
+level=info ts=2023-01-25T13:34:13.710472081Z caller=filetarget.go:282 msg="watching new directory" directory=/var/log
+level=info ts=2023-01-25T13:34:13.71060101Z caller=filetarget.go:282 msg="watching new directory" directory=/var/log
+ts=2023-01-25T13:34:13.710669889Z caller=log.go:168 level=info msg="Seeked /var/log/auth.log - &{Offset:75645 Whence:0}"
+level=info ts=2023-01-25T13:34:13.710726299Z caller=tailer.go:143 component=tailer msg="tail routine: started" path=/var/log/auth.log
+ts=2023-01-25T13:34:13.710778611Z caller=log.go:168 level=info msg="Seeked /var/log/syslog - &{Offset:124303 Whence:0}"
+level=info ts=2023-01-25T13:34:13.710823151Z caller=tailer.go:143 component=tailer msg="tail routine: started" path=/var/log/syslog
+{% endhighlight %}
+
+Видим, что Promtail начал извлекать логи по указанным нами путям. В то же время, если заглянем в лог Loki, то увидим, что он начал складывать получаемые данные в таблицы
+
+{% highlight sh %}
+level=info ts=2023-01-25T13:34:40.897589776Z caller=table_manager.go:166 msg="handing over indexes to shipper"
+level=info ts=2023-01-25T13:34:40.897619921Z caller=table_manager.go:134 msg="uploading tables"
+level=info ts=2023-01-25T13:35:40.898170816Z caller=table_manager.go:134 msg="uploading tables"
+level=info ts=2023-01-25T13:35:40.898161387Z caller=table_manager.go:166 msg="handing over indexes to shipper"
+level=info ts=2023-01-25T13:36:40.897893225Z caller=table_manager.go:166 msg="handing over indexes to shipper"
+level=info ts=2023-01-25T13:36:40.897899193Z caller=table_manager.go:134 msg="uploading tables"
+{% endhighlight %}
+
+То есть, мы уже собираем логи, фильтруем их и сохраняем в базу. Осталось разобраться, как ходить к этой базе и доставать из неё то, что нам нужно.
 
 #### Ставим Grafana
 
