@@ -170,7 +170,7 @@ Fluentd лучше адаптирован к контейнерной инфра
 
 Заглянем в [Github Loki](https://github.com/grafana/loki/releases) и взглянем на последнюю выпущенную версию приложения.
 
-В "Assets" каждого релиза мы можем найти архивы Loki и promtail для разных ОС. Скопируем ссылки на подходящие архивы и закачаем их на наш сервер логирования, используя `wget`. Для Ubuntu 20, например, подойдет сборка linux-amd64:
+В "Assets" каждого релиза мы можем найти архивы Loki и Promtail для разных ОС. Скопируем ссылки на подходящие архивы и закачаем их на наш сервер логирования, используя `wget`. Для Ubuntu 20, например, подойдет сборка linux-amd64:
 
 {% highlight sh %}
 wget https://github.com/grafana/loki/releases/download/v2.7.1/loki-linux-amd64.zip -P /opt
@@ -326,7 +326,7 @@ static_configs:
         action: drop
 {% endhighlight %}
 
-Теперь разберемся, что мы делаем в новых job.
+Теперь разберемся, что происходит в новых job.
 
 В `syslog` мы собираем события только из файла `/var/log/syslog`. Каждую строку мы парсим с помощью регулярного выражения. Для полей `host` и `service` Promtail создает отдельные теги, по которым мы сможем выполнять поиск в Loki.
 
@@ -336,12 +336,12 @@ Promtail, увидев, например, строку лога:
 Jan 25 11:38:23 node-1 sshd[1905]: Disconnected from authenticating user root 81.68.93.197 port 36058 [preauth]
 {% endhighlight %}
 
-Разберет её с помощью regex следующим образом:
+разберет её с помощью regex следующим образом:
 
-- *time*: Jan 25 11:38:23
-- *host*: node-1
-- *service*: sshd
-- *msg*: Disconnected from authenticating user root 81.68.93.197 port 36058 [preauth]
+- *time*: `Jan 25 11:38:23`
+- *host*: `node-1`
+- *service*: `sshd`
+- *msg*: `Disconnected from authenticating user root 81.68.93.197 port 36058 [preauth]``
 
 В `host` и `service` у логов часто будут повторяющиеся значения, поэтому будет удобно добавить теги (и индексы) по ним, чтобы ускорить поиск.
 
