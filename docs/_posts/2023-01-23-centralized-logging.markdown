@@ -166,10 +166,6 @@ Fluentd лучше адаптирован к контейнерной инфра
 
 Будем использовать для установки компонентов директорию `/opt`
 
-{% highlight sh %}
-mkdir /opt/loki /opt/promtail /opt/grafana
-{% endhighlight %}
-
 #### Ставим Loki и Promtail
 
 Заглянем в [Github Loki](https://github.com/grafana/loki/releases) и взглянем на последнюю выпущенную версию приложения.
@@ -177,8 +173,8 @@ mkdir /opt/loki /opt/promtail /opt/grafana
 В "Assets" каждого релиза мы можем найти архивы loki и promtail для разных ОС. Скопируем ссылки на подходящие архивы и закачаем их на наш сервер логирования, используя `wget`. Для Ubuntu 20, например, подойдет сборка linux-amd64:
 
 {% highlight sh %}
-wget https://github.com/grafana/loki/releases/download/v2.7.1/loki-linux-amd64.zip -P /opt/loki
-wget https://github.com/grafana/loki/releases/download/v2.7.1/promtail-linux-amd64.zip -P /opt/promtail
+wget https://github.com/grafana/loki/releases/download/v2.7.1/loki-linux-amd64.zip -P /opt
+wget https://github.com/grafana/loki/releases/download/v2.7.1/promtail-linux-amd64.zip -P /opt
 {% endhighlight %}
 
 В случае успеха для каждого `wget` увидим что-то подобное:
@@ -186,22 +182,82 @@ wget https://github.com/grafana/loki/releases/download/v2.7.1/promtail-linux-amd
 {% highlight sh %}
 
 # =>
---2023-01-25 10:14:57--  https://github.com/grafana/loki/releases/download/v2.7.1/loki-linux-amd64.zip
+--2023-01-25 10:35:03--  https://github.com/grafana/loki/releases/download/v2.7.1/loki-linux-amd64.zip
 Resolving github.com (github.com)... 140.82.121.4
 Connecting to github.com (github.com)|140.82.121.4|:443... connected.
 HTTP request sent, awaiting response... 302 Found
-...
-Resolving objects.githubusercontent.com (objects.githubusercontent.com)... 185.199.109.133, 185.199.110.133, 185.199.111.133, ...
-Connecting to objects.githubusercontent.com (objects.githubusercontent.com)|185.199.109.133|:443... connected.
+Location: ....
+....
+Resolving objects.githubusercontent.com (objects.githubusercontent.com)... 185.199.108.133, 185.199.111.133, 185.199.110.133, ...
+Connecting to objects.githubusercontent.com (objects.githubusercontent.com)|185.199.108.133|:443... connected.
 HTTP request sent, awaiting response... 200 OK
 Length: 18050163 (17M) [application/octet-stream]
-Saving to: ‘/opt/loki/loki-linux-amd64.zip’
+Saving to: ‘/opt/loki-linux-amd64.zip’
 
-loki-linux-amd64.zip                               100%[===============================================================================================================>]  17.21M  3.51MB/s    in 4.9s    
+loki-linux-amd64.zip                               100%[===============================================================================================================>]  17.21M  37.9MB/s    in 0.5s    
 
-2023-01-25 10:15:03 (3.49 MB/s) - ‘/opt/loki/loki-linux-amd64.zip’ saved [18050163/18050163]
+2023-01-25 10:35:04 (37.9 MB/s) - ‘/opt/loki-linux-amd64.zip’ saved [18050163/18050163]
+
 {% endhighlight %}
 
+Теперь у нас есть zip-архивы в `/opt`.
+
+{% highlight sh %}
+ls /opt
+loki-linux-amd64.zip  promtail-linux-amd64.zip
+{% endhighlight %}
+
+Чтобы распаковать их, на Ubuntu нам понадобится утилита unzip. Если её нет — она легко ставится через пакетный менеджер apt:
+
+{% highlight sh %}
+sudo apt update && sudo apt install unzip
+
+# =>
+...
+Suggested packages:
+  zip
+The following NEW packages will be installed:
+  unzip
+0 upgraded, 1 newly installed, 0 to remove and 183 not upgraded.
+Need to get 168 kB of archives.
+After this operation, 593 kB of additional disk space will be used.
+Get:1 http://mirror.yandex.ru/ubuntu focal-updates/main amd64 unzip amd64 6.0-25ubuntu1.1 [168 kB]
+Fetched 168 kB in 0s (7612 kB/s)
+Selecting previously unselected package unzip.
+(Reading database ... 65530 files and directories currently installed.)
+Preparing to unpack .../unzip_6.0-25ubuntu1.1_amd64.deb ...
+Unpacking unzip (6.0-25ubuntu1.1) ...
+Setting up unzip (6.0-25ubuntu1.1) ...
+Processing triggers for mime-support (3.64ubuntu1) ...
+Processing triggers for man-db (2.9.1-1) ...
+{% endhighlight %}
+
+#### Ставим Grafana
+
+Идем на [сайт Grafana](https://grafana.com/grafana/download?edition=oss) с опубликованными OSS релизами и качаем подходящий для нашей ОС архив на сервер:
+
+{% highlight sh %}
+wget https://dl.grafana.com/oss/release/grafana-9.3.4.linux-amd64.tar.gz -P /opt
+{% endhighlight %}
+
+Перейдем в `/opt` и распакуем скачанный архив:
+
+{% highlight sh %}
+cd /opt && tar -xzvf grafana-9.3.4.linux-amd64.tar.gz
+
+# =>
+grafana-9.3.4/LICENSE
+grafana-9.3.4/README.md
+grafana-9.3.4/NOTICE.md
+grafana-9.3.4/VERSION
+grafana-9.3.4/bin
+grafana-9.3.4/bin/grafana-cli
+grafana-9.3.4/bin/grafana-cli.md5
+grafana-9.3.4/bin/grafana-server
+...
+{% endhighlight %}
+
+После распаковки можем видеть в `/opt` папку grafana выбранной версии.
 
 ### В итоге
 
