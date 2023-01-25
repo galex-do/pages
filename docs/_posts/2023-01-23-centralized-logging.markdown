@@ -162,7 +162,46 @@ Fluentd лучше адаптирован к контейнерной инфра
 
 ### Настроим сбор логов
 
-todo
+Теперь попробуем развернуть PLG стек и воспользоваться его возможностями для работы с логами. В примере разворачивать будем на сервере Ubuntu Linux. Компоненты PLG-стека просты в развертывании — достаточно скачать архивы подходящей версии для нужной ОС, распаковать их, поправить конфиги и запустить.
+
+Будем использовать для установки компонентов директорию `/opt`
+
+{% highlight sh %}
+mkdir /opt/loki /opt/promtail /opt/grafana
+{% endhighlight %}
+
+#### Ставим Loki и Promtail
+
+Заглянем в [Github Loki](https://github.com/grafana/loki/releases) и взглянем на последнюю выпущенную версию приложения.
+
+В "Assets" каждого релиза мы можем найти архивы loki и promtail для разных ОС. Скопируем ссылки на подходящие архивы и закачаем их на наш сервер логирования, используя `wget`. Для Ubuntu 20, например, подойдет сборка linux-amd64:
+
+{% highlight sh %}
+wget https://github.com/grafana/loki/releases/download/v2.7.1/loki-linux-amd64.zip -P /opt/loki
+wget https://github.com/grafana/loki/releases/download/v2.7.1/promtail-linux-amd64.zip -P /opt/promtail
+{% endhighlight %}
+
+В случае успеха для каждого `wget` увидим что-то подобное:
+
+{% highlight sh %}
+
+# =>
+--2023-01-25 10:14:57--  https://github.com/grafana/loki/releases/download/v2.7.1/loki-linux-amd64.zip
+Resolving github.com (github.com)... 140.82.121.4
+Connecting to github.com (github.com)|140.82.121.4|:443... connected.
+HTTP request sent, awaiting response... 302 Found
+...
+Resolving objects.githubusercontent.com (objects.githubusercontent.com)... 185.199.109.133, 185.199.110.133, 185.199.111.133, ...
+Connecting to objects.githubusercontent.com (objects.githubusercontent.com)|185.199.109.133|:443... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 18050163 (17M) [application/octet-stream]
+Saving to: ‘/opt/loki/loki-linux-amd64.zip’
+
+loki-linux-amd64.zip                               100%[===============================================================================================================>]  17.21M  3.51MB/s    in 4.9s    
+
+2023-01-25 10:15:03 (3.49 MB/s) - ‘/opt/loki/loki-linux-amd64.zip’ saved [18050163/18050163]
+{% endhighlight %}
+
 
 ### В итоге
 
