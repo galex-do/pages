@@ -186,8 +186,7 @@ wget https://github.com/grafana/loki/releases/download/v2.7.1/promtail-linux-amd
 Resolving github.com (github.com)... 140.82.121.4
 Connecting to github.com (github.com)|140.82.121.4|:443... connected.
 HTTP request sent, awaiting response... 302 Found
-Location: ....
-....
+...
 Resolving objects.githubusercontent.com (objects.githubusercontent.com)... 185.199.108.133, 185.199.111.133, 185.199.110.133, ...
 Connecting to objects.githubusercontent.com (objects.githubusercontent.com)|185.199.108.133|:443... connected.
 HTTP request sent, awaiting response... 200 OK
@@ -231,6 +230,22 @@ Setting up unzip (6.0-25ubuntu1.1) ...
 Processing triggers for mime-support (3.64ubuntu1) ...
 Processing triggers for man-db (2.9.1-1) ...
 {% endhighlight %}
+
+Распакуем архивы в директорию logging
+
+{% highlight sh %}
+unzip loki-linux-amd64.zip -d /opt/logging
+unzip promtail-linux-amd64.zip -d /opt/logging
+{% endhighlight %}
+
+Посмотрим, что получилось:
+
+{% highlight sh %}
+ls /opt/logging/
+loki-linux-amd64  promtail-linux-amd64
+{% endhighlight %}
+
+Мы скачали и распаковали бинарные исполняемые файлы loki и promtail. Осталось их только настроить и запустить.
 
 #### Ставим Grafana
 
